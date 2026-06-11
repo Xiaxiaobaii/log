@@ -1,7 +1,8 @@
-use std::{env, fs, io::{self, ErrorKind}, path::PathBuf};
+use std::{env, fs::{self, File}, io::{self, ErrorKind::{self, AlreadyExists}, Read, Write}, path::PathBuf, time::{Duration, SystemTime}};
 
-use crossterm::event::{Event, KeyCode::Esc};
-use ratatui::{DefaultTerminal, Frame, style::Style, widgets::{Block, List}};
+use chrono::{DateTime, Local};
+use crossterm::event::{Event, KeyCode::{Char, Down, Enter, Esc, Left, Right, Up}};
+use ratatui::{DefaultTerminal, Frame, layout::{Constraint::{Fill, Length}, Layout}, style::{Color, Style, Stylize}, symbols::border, widgets::{Block, Borders, List, ListState, Padding, Paragraph, StatefulWidget, Widget}};
 use ratatui_textarea::{Input, TextArea};
 
 fn main() -> io::Result<()> {
@@ -24,45 +25,210 @@ fn app(terminal: &mut DefaultTerminal, root: PathBuf) -> std::io::Result<()> {
         acc
     });
     let mut app = App{
+        raw_path: root,
+        raw_list: list.clone(),
         list: List::new(list)
-        .block(Block::bordered().title("List"))
+        .block(Block::bordered().title("Logs").padding(Padding::left(2)))
         .style(Style::new().white())
-        .highlight_style(Style::new().italic())
-        .highlight_symbol(">>")
-        .repeat_highlight_symbol(true),
+        .highlight_style(Style::new().bg(ratatui::style::Color::White).fg(ratatui::style::Color::Black))
+        .highlight_symbol(">>"),
+        list_state: ListState::default(),
         textarea: TextArea::default(),
+        mode: Mode::List(1),
+        now_time: SystemTime::now().into(),
     };
     app.run(terminal)
 }
 
-pub enum State {
+#[derive(PartialEq, Clone)]
+enum Mode {
+    List(u8),
+    Edit(EditState),
+}
 
+#[derive(PartialEq, Clone, Copy)]
+pub enum EditMode {
+    Insert,
+    Normal,
+}
+
+#[derive(PartialEq, Clone)]
+pub struct EditState {
+    begin_time: String,
+    mode: EditMode,
 }
 
 pub struct App {
+    raw_path: PathBuf,
+    raw_list: Vec<String>,
     list: List<'static>,
+    list_state: ListState,
     textarea: TextArea<'static>,
+    mode: Mode,
+    now_time: DateTime<Local>,
 }
 
 impl App {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+        
+        self.textarea.set_cursor_style(Style::default());
+        self.textarea.set_placeholder_style(Style::default());
+        self.textarea.set_block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Textarea"),
+        );
+        
         loop {
+            self.now_time = SystemTime::now().into();
             terminal.draw(|frame| self.draw(frame))?;
-            if let Ok(Event::Key(key)) = crossterm::event::read() {
-                if key.code == Esc {
-                    break;
+            if crossterm::event::poll(Duration::from_secs(1))? {
+                if let Ok(Event::Key(key)) = crossterm::event::read() {
+
+                    match self.mode.clone() {
+                        Mode::Edit(state) => {
+                            if key.code == Esc {
+                                self.raw_path.push(format!("{}.txt", state.begin_time));
+                                let file = File::create_new(&self.raw_path);
+                                
+                                match file {
+                                    Ok(mut file) => {
+                                        let _ = file.write(format!("log #{}\nbegin time: {}\nend time: {}\n\n{}", self.raw_list.len(), state.begin_time, self.now_time.format("%Y-%m-%d %H:%M:%S"), self.textarea.lines().iter().fold(String::new(), |mut acc, str| {
+                                            acc += str;
+                                            acc += "\n";
+                                            acc
+                                        })).as_bytes());
+                                        self.raw_list.push(self.raw_path.to_string_lossy().to_string().rsplit_once(".").unwrap().0.to_string());
+                                        self.list = List::new(self.raw_list.clone())
+                                            .block(Block::bordered().title("Logs").padding(Padding::left(2)))
+                                            .style(Style::new().white())
+                                            .highlight_style(Style::new().bg(ratatui::style::Color::White).fg(ratatui::style::Color::Black))
+                                            .highlight_symbol(">>");
+                                    }
+                                    Err(err) => {
+                                        if err.kind() == AlreadyExists {
+                                            let mut file = File::create(&self.raw_path)?;
+                                            let _ = file.write(format!("{}", self.textarea.lines().iter().fold(String::new(), |mut acc, str| {
+                                                acc += str;
+                                                acc += "\n";
+                                                acc
+                                            })).as_bytes());
+                                        }
+                                    }
+                                }
+                                self.textarea.clear();
+                                self.raw_path.pop();
+                                self.mode = Mode::List(1);
+
+                            } else {
+                                self.textarea.input(Input::from(key));
+                            }
+                        }
+                        Mode::List(index) => {
+                            match key.code {
+                                Esc => {
+                                    break;
+                                }
+                                Char('q') => {
+                                    break;
+                                }
+                                Up => {
+                                    self.list_state.select_last();
+                                }
+                                Down => {
+                                    self.list_state.select_next();
+                                }
+                                Left => {
+                                    if index <= 1 {
+                                        continue;
+                                    }
+                                    self.mode = Mode::List(index-1);
+                                }
+                                Right => {
+                                    if index >= 3 {
+                                        continue;
+                                    }
+                                    self.mode = Mode::List(index+1);
+                                }
+                                Char('a') => {
+                                    if index <= 1 {
+                                        continue;
+                                    }
+                                    self.mode = Mode::List(index-1);
+                                }
+                                Char('d') => {
+                                    if index >= 3 {
+                                        continue;
+                                    }
+                                    self.mode = Mode::List(index+1);
+                                }
+                                Enter => {
+                                    if index == 1 {
+                                        self.mode = Mode::Edit(EditState { begin_time: self.now_time.format("%Y-%m-%d %H:%M:%S").to_string(), mode: EditMode::Normal })
+                                    }else {
+                                        if let Some(list_index) = self.list_state.selected() {
+                                            if index == 2 {
+                                                let mut file = File::open(format!("{}.txt", self.raw_list[list_index]))?;
+                                                let mut buf = String::new();
+                                                file.read_to_string(&mut buf)?;
+                                                self.textarea.insert_str(buf);
+                                                self.mode = Mode::Edit(EditState { begin_time: self.raw_list[list_index].clone(), mode: EditMode::Normal });
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => {
+
+                                }
+                            }
+                        }
+                    }
                 }
-                self.textarea.input(Input::from(key));
             }
         }
         Ok(())
     }
 
-    fn draw(&self, frame: &mut Frame) {
-        frame.render_widget(self.list.clone(), frame.area());
+    fn draw(&mut self, frame: &mut Frame) {
+        let area = frame.area();
+        let buffer = frame.buffer_mut();
+        match self.mode {
+            Mode::List(index) => {
+                let [top, list] = Layout::vertical([Length(3), Fill(1)]).areas(area);
+                let [_new, _read, _delete, time] = Layout::horizontal([Fill(1), Fill(1), Fill(1), Fill(1)]).areas(top);
+                
+                let mut new = Paragraph::new("New")
+                .block(normal_block());
+                let mut read = Paragraph::new("Read")
+                .block(normal_block());
+                let mut delete = Paragraph::new("Delete")
+                .block(normal_block());
+                if index == 1 {
+                    new = new.block(normal_block().bg(Color::White).fg(Color::Black));
+                }else if index == 2 {
+                    read = read.block(normal_block().bg(Color::White).fg(Color::Black));
+                } else if index == 3 {
+                    delete = delete.block(normal_block().bg(Color::White).fg(Color::Black));
+                }
+                new.render(_new, buffer);
+                read.render(_read, buffer);
+                delete.render(_delete, buffer);
+                Paragraph::new(format!("{}", self.now_time.format("%Y-%m-%d %H:%M:%S")))
+                .block(normal_block()).render(time, buffer);
+
+                StatefulWidget::render(self.list.clone(), list, buffer, &mut self.list_state);
+            }
+            Mode::Edit(_) => {
+                let [top, list] = Layout::vertical([Fill(1), Length(3)]).areas(area);
+                self.textarea.clone().render(top, buffer);
+            }
+        }
+
     }
 }
 
-pub fn open_vim() {
-
+pub fn normal_block() -> Block<'static> {
+    Block::bordered()
+        .border_style(Style::default().fg(ratatui::style::Color::White))
+        .border_set(border::THICK)
 }
