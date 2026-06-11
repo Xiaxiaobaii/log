@@ -28,11 +28,7 @@ fn app(terminal: &mut DefaultTerminal, root: PathBuf) -> anyhow::Result<()> {
     let mut app = App{
         raw_path: root,
         raw_list: list.clone(),
-        list: List::new(list)
-        .block(Block::bordered().title("Logs").padding(Padding::left(2)))
-        .style(Style::new().white())
-        .highlight_style(Style::new().bg(ratatui::style::Color::White).fg(ratatui::style::Color::Black))
-        .highlight_symbol(">>"),
+        list: raw_to_list(list),
         list_state: ListState::default(),
         textarea: TextArea::default(),
         mode: Mode::List(1),
@@ -100,11 +96,7 @@ impl App {
                                             acc
                                         })).as_bytes());
                                         self.raw_list.push(self.raw_path.file_name().unwrap().to_string_lossy().to_string().rsplit_once(".").unwrap().0.to_string());
-                                        self.list = List::new(self.raw_list.clone())
-                                            .block(Block::bordered().title("Logs").padding(Padding::left(2)))
-                                            .style(Style::new().white())
-                                            .highlight_style(Style::new().bg(ratatui::style::Color::White).fg(ratatui::style::Color::Black))
-                                            .highlight_symbol(">>");
+                                        self.list = raw_to_list(self.raw_list.clone());
                                     }
                                     Err(err) => {
                                         if err.kind() == AlreadyExists {
@@ -181,11 +173,7 @@ impl App {
                                                 fs::remove_file(&self.raw_path)?;
                                                 self.raw_path.pop();
                                                 self.raw_list.remove(list_index.into());
-                                                self.list = List::new(self.raw_list.clone())
-                                                    .block(Block::bordered().title("Logs").padding(Padding::left(2)))
-                                                    .style(Style::new().white())
-                                                    .highlight_style(Style::new().bg(ratatui::style::Color::White).fg(ratatui::style::Color::Black))
-                                                    .highlight_symbol(">>");
+                                                self.list = raw_to_list(self.raw_list.clone());
                                             }
                                         }
                                     }
@@ -238,6 +226,15 @@ impl App {
         }
 
     }
+}
+
+pub fn raw_to_list(mut list: Vec<String>) -> List<'static> {
+    list.reverse();
+    List::new(list)
+        .block(Block::bordered().title("Logs").padding(Padding::left(2)))
+        .style(Style::new().white())
+        .highlight_style(Style::new().bg(ratatui::style::Color::White).fg(ratatui::style::Color::Black))
+        .highlight_symbol(">>")
 }
 
 pub fn normal_block() -> Block<'static> {
