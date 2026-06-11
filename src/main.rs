@@ -133,7 +133,7 @@ impl App {
                                     break;
                                 }
                                 Up => {
-                                    self.list_state.select_last();
+                                    self.list_state.select_previous();
                                 }
                                 Down => {
                                     self.list_state.select_next();
