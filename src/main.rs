@@ -1,11 +1,12 @@
-use std::{env, fs::{self, File}, io::{self, ErrorKind::{self, AlreadyExists}, Read, Write}, path::PathBuf, time::{Duration, SystemTime}};
+use std::{env, fs::{self, File}, io::{ErrorKind::{self, AlreadyExists}, Read, Write}, path::PathBuf, time::{Duration, SystemTime}};
 
+use anyhow::Context;
 use chrono::{DateTime, Local};
 use crossterm::event::{Event, KeyCode::{Char, Down, Enter, Esc, Left, Right, Up}};
 use ratatui::{DefaultTerminal, Frame, layout::{Constraint::{Fill, Length}, Layout}, style::{Color, Style, Stylize}, symbols::border, widgets::{Block, Borders, List, ListState, Padding, Paragraph, StatefulWidget, Widget}};
 use ratatui_textarea::{Input, TextArea};
 
-fn main() -> io::Result<()> {
+fn main() -> anyhow::Result<()> {
     let mut root = env::home_dir().expect("获取家目录失败");
     root.push(".log");
     if let Err(e) = fs::create_dir(&root) && e.kind() != ErrorKind::AlreadyExists {
@@ -17,7 +18,7 @@ fn main() -> io::Result<()> {
     restore
 }
 
-fn app(terminal: &mut DefaultTerminal, root: PathBuf) -> std::io::Result<()> {
+fn app(terminal: &mut DefaultTerminal, root: PathBuf) -> anyhow::Result<()> {
     let list = root.read_dir()?.fold(vec![], |mut acc, dir| {
         if let Ok(dir) = dir && let Some((name, _)) = dir.file_name().to_string_lossy().to_string().rsplit_once(".") {
             acc.push(name.to_string());
@@ -69,7 +70,7 @@ pub struct App {
 }
 
 impl App {
-    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> anyhow::Result<()> {
         
         self.textarea.set_cursor_style(Style::default());
         self.textarea.set_placeholder_style(Style::default());
@@ -98,7 +99,7 @@ impl App {
                                             acc += "\n";
                                             acc
                                         })).as_bytes());
-                                        self.raw_list.push(self.raw_path.to_string_lossy().to_string().rsplit_once(".").unwrap().0.to_string());
+                                        self.raw_list.push(self.raw_path.file_name().unwrap().to_string_lossy().to_string().rsplit_once(".").unwrap().0.to_string());
                                         self.list = List::new(self.raw_list.clone())
                                             .block(Block::bordered().title("Logs").padding(Padding::left(2)))
                                             .style(Style::new().white())
@@ -168,11 +169,23 @@ impl App {
                                     }else {
                                         if let Some(list_index) = self.list_state.selected() {
                                             if index == 2 {
-                                                let mut file = File::open(format!("{}.txt", self.raw_list[list_index]))?;
+                                                self.raw_path.push(format!("{}.txt", self.raw_list[list_index]));
+                                                let mut file = File::open(&self.raw_path)?;
+                                                self.raw_path.pop();
                                                 let mut buf = String::new();
                                                 file.read_to_string(&mut buf)?;
                                                 self.textarea.insert_str(buf);
                                                 self.mode = Mode::Edit(EditState { begin_time: self.raw_list[list_index].clone(), mode: EditMode::Normal });
+                                            } else if index == 3 {
+                                                self.raw_path.push(format!("{}.txt", self.raw_list[list_index]));
+                                                fs::remove_file(&self.raw_path)?;
+                                                self.raw_path.pop();
+                                                self.raw_list.remove(list_index.into());
+                                                self.list = List::new(self.raw_list.clone())
+                                                    .block(Block::bordered().title("Logs").padding(Padding::left(2)))
+                                                    .style(Style::new().white())
+                                                    .highlight_style(Style::new().bg(ratatui::style::Color::White).fg(ratatui::style::Color::Black))
+                                                    .highlight_symbol(">>");
                                             }
                                         }
                                     }
