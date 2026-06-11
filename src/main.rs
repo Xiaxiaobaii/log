@@ -164,11 +164,11 @@ impl App {
                                     self.mode = Mode::List(index+1);
                                 }
                                 Enter => {
-                                    if index == 1 {
+                                    if index == 2 {
                                         self.mode = Mode::Edit(EditState { begin_time: self.now_time.format("%Y-%m-%d %H:%M:%S").to_string(), mode: EditMode::Normal })
                                     }else {
                                         if let Some(list_index) = self.list_state.selected() {
-                                            if index == 2 {
+                                            if index == 1 {
                                                 self.raw_path.push(format!("{}.txt", self.raw_list[list_index]));
                                                 let mut file = File::open(&self.raw_path)?;
                                                 self.raw_path.pop();
@@ -210,21 +210,21 @@ impl App {
                 let [top, list] = Layout::vertical([Length(3), Fill(1)]).areas(area);
                 let [_new, _read, _delete, time] = Layout::horizontal([Fill(1), Fill(1), Fill(1), Fill(1)]).areas(top);
                 
-                let mut new = Paragraph::new("New")
-                .block(normal_block());
                 let mut read = Paragraph::new("Read")
+                .block(normal_block());
+                let mut new = Paragraph::new("New")
                 .block(normal_block());
                 let mut delete = Paragraph::new("Delete")
                 .block(normal_block());
                 if index == 1 {
-                    new = new.block(normal_block().bg(Color::White).fg(Color::Black));
-                }else if index == 2 {
                     read = read.block(normal_block().bg(Color::White).fg(Color::Black));
+                }else if index == 2 {
+                    new = new.block(normal_block().bg(Color::White).fg(Color::Black));
                 } else if index == 3 {
                     delete = delete.block(normal_block().bg(Color::White).fg(Color::Black));
                 }
-                new.render(_new, buffer);
-                read.render(_read, buffer);
+                read.render(_new, buffer);
+                new.render(_read, buffer);
                 delete.render(_delete, buffer);
                 Paragraph::new(format!("{}", self.now_time.format("%Y-%m-%d %H:%M:%S")))
                 .block(normal_block()).render(time, buffer);
