@@ -24,7 +24,7 @@ use ratatui::{
     symbols::border,
     widgets::{Block, Borders, List, ListState, Padding, Paragraph, StatefulWidget, Widget},
 };
-use ratatui_textarea::{Input, TextArea};
+use ratatui_textarea::{Input, TextArea, WrapMode};
 
 #[derive(PartialEq, Clone)]
 enum Mode {
@@ -101,7 +101,7 @@ impl App {
         self.textarea.set_cursor_line_style(Style::default());
         self.textarea
             .set_block(Block::default().borders(Borders::ALL).title("Edit"));
-
+        self.textarea.set_wrap_mode(WrapMode::Glyph);
         loop {
             self.now_time = SystemTime::now().into();
             terminal.draw(|frame| self.draw(frame))?;
@@ -223,6 +223,7 @@ impl App {
                                         self.raw_path.pop();
                                         let mut buf = String::new();
                                         file.read_to_string(&mut buf)?;
+                                        buf.pop();
                                         self.textarea.insert_str(buf);
                                         self.mode = Mode::Edit(EditState {
                                             begin_time: self.raw_list[list_index].clone(),
