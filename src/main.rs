@@ -95,10 +95,12 @@ fn app(terminal: &mut DefaultTerminal, root: PathBuf) -> anyhow::Result<()> {
 
 impl App {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> anyhow::Result<()> {
-        self.textarea.set_cursor_style(Style::default());
-        self.textarea.set_placeholder_style(Style::default());
+        //self.textarea.set_cursor_style(Style::default());
+        self.textarea.set_hard_tab_indent(true);
+        self.textarea.set_line_number_style(Style::default().fg(Color::DarkGray));
+        self.textarea.set_cursor_line_style(Style::default());
         self.textarea
-            .set_block(Block::default().borders(Borders::ALL).title("Textarea"));
+            .set_block(Block::default().borders(Borders::ALL).title("Edit"));
 
         loop {
             self.now_time = SystemTime::now().into();
