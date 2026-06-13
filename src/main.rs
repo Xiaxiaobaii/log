@@ -112,10 +112,50 @@ impl App {
                             let file = File::create_new(&self.raw_path);
                             let linetext = self.textarea.lines().iter().fold(
                                 String::new(),
-                                |mut acc, str| {
-                                    acc += &str;
-                                    acc += "\n";
-                                    acc
+                                |mut cc, str| {
+                                    for i in str.chars() {
+                                        match i {
+                                            '，' => {
+                                                cc.push_str(", ");
+                                            }
+                                            '！' => {
+                                                cc.push_str("! ");
+                                            }
+                                            '。' => {
+                                                cc.push_str(". ");
+                                            }
+                                            '；' => {
+                                                cc.push_str("; ");
+                                            }
+                                            '：' => {
+                                                cc.push_str(": ");
+                                            }
+                                            '‘' => {
+                                                cc.push_str("' ");
+                                            }
+                                            '“' => {
+                                                cc.push_str("\" ");
+                                            }
+                                            '【' => {
+                                                cc.push_str(" [");
+                                            }
+                                            '】' => {
+                                                cc.push_str("] ");
+                                            }
+                                            '（' => {
+                                                cc.push_str(" (");
+                                            }
+                                            '）' => {
+                                                cc.push_str(") ");
+                                            }
+                                            _ => {
+                                                cc.push(i);
+                                            }
+                                        }
+                                    }
+                                    
+                                    cc += "\n";
+                                    cc
                                 }
                             );
                             match file {
