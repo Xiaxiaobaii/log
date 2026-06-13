@@ -131,8 +131,7 @@ impl App {
                                         )
                                         .as_bytes(),
                                     );
-                                    self.raw_list.push(
-                                        self.raw_path
+                                    let mut temp = vec![self.raw_path
                                             .file_name()
                                             .unwrap()
                                             .to_string_lossy()
@@ -140,8 +139,9 @@ impl App {
                                             .rsplit_once(".")
                                             .unwrap()
                                             .0
-                                            .to_string(),
-                                    );
+                                            .to_string()];
+                                        temp.extend(self.raw_list.clone());
+                                    self.raw_list = temp;
                                     self.list = raw_to_list(self.raw_list.clone());
                                 }
                                 Err(err) => {
