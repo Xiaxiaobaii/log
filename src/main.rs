@@ -95,7 +95,6 @@ fn app(terminal: &mut DefaultTerminal, root: PathBuf) -> anyhow::Result<()> {
 
 impl App {
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> anyhow::Result<()> {
-        //self.textarea.set_cursor_style(Style::default());
         self.textarea.set_hard_tab_indent(true);
         self.textarea.set_line_number_style(Style::default().fg(Color::DarkGray));
         self.textarea.set_cursor_line_style(Style::default());
@@ -111,7 +110,14 @@ impl App {
                         if key.code == Esc {
                             self.raw_path.push(format!("{}.txt", state.begin_time));
                             let file = File::create_new(&self.raw_path);
-
+                            let linetext = self.textarea.lines().iter().fold(
+                                String::new(),
+                                |mut acc, str| {
+                                    acc += &str;
+                                    acc += "\n";
+                                    acc
+                                }
+                            );
                             match file {
                                 Ok(mut file) => {
                                     let _ = file.write(
@@ -120,14 +126,7 @@ impl App {
                                             self.raw_list.len(),
                                             state.begin_time,
                                             self.now_time.format("%Y-%m-%d %H:%M:%S"),
-                                            self.textarea.lines().iter().fold(
-                                                String::new(),
-                                                |mut acc, str| {
-                                                    acc += str;
-                                                    acc += "\n";
-                                                    acc
-                                                }
-                                            )
+                                            linetext
                                         )
                                         .as_bytes(),
                                     );
@@ -148,14 +147,7 @@ impl App {
                                     if err.kind() == AlreadyExists {
                                         let mut file = File::create(&self.raw_path)?;
                                         let _ = file.write(
-                                            self.textarea.lines().iter().fold(
-                                                    String::new(),
-                                                    |mut acc, str| {
-                                                        acc += str;
-                                                        acc += "\n";
-                                                        acc
-                                                    }
-                                                )
+                                            linetext
                                             .as_bytes(),
                                         );
                                     }
@@ -193,6 +185,12 @@ impl App {
                             }
                             self.mode = Mode::List(index + 1);
                         }
+                        Char('w') => {
+                            self.list_state.select_previous();
+                        }
+                        Char('s') => {
+                            self.list_state.select_next();
+                        }
                         Char('a') => {
                             if index <= 1 {
                                 continue;
@@ -205,6 +203,7 @@ impl App {
                             }
                             self.mode = Mode::List(index + 1);
                         }
+
                         Enter => {
                             if index == 2 {
                                 self.mode = Mode::Edit(EditState {
