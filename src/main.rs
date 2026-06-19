@@ -115,47 +115,7 @@ impl App {
                             let linetext = self.textarea.lines().iter().fold(
                                 String::new(),
                                 |mut cc, str| {
-                                    for i in str.chars() {
-                                        match i {
-                                            '，' => {
-                                                cc.push_str(", ");
-                                            }
-                                            '！' => {
-                                                cc.push_str("! ");
-                                            }
-                                            '。' => {
-                                                cc.push_str(". ");
-                                            }
-                                            '；' => {
-                                                cc.push_str("; ");
-                                            }
-                                            '：' => {
-                                                cc.push_str(": ");
-                                            }
-                                            '‘' => {
-                                                cc.push_str("' ");
-                                            }
-                                            '“' => {
-                                                cc.push_str("\" ");
-                                            }
-                                            '【' => {
-                                                cc.push_str(" [");
-                                            }
-                                            '】' => {
-                                                cc.push_str("] ");
-                                            }
-                                            '（' => {
-                                                cc.push_str(" (");
-                                            }
-                                            '）' => {
-                                                cc.push_str(") ");
-                                            }
-                                            _ => {
-                                                cc.push(i);
-                                            }
-                                        }
-                                    }
-                                    
+                                    cc += str;
                                     cc += "\n";
                                     cc
                                 }
