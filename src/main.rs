@@ -69,7 +69,7 @@ fn main() -> anyhow::Result<()> {
 }
 
 fn app(terminal: &mut DefaultTerminal, root: PathBuf) -> anyhow::Result<()> {
-    let list = root.read_dir()?.fold(vec![], |mut acc, dir| {
+    let mut list = root.read_dir()?.fold(vec![], |mut acc, dir| {
         if let Ok(dir) = dir
             && let Some((name, _)) = dir
                 .file_name()
@@ -81,6 +81,8 @@ fn app(terminal: &mut DefaultTerminal, root: PathBuf) -> anyhow::Result<()> {
         }
         acc
     });
+    list.sort();
+    list.reverse();
     let mut app = App {
         raw_path: root,
         raw_list: list.clone(),
@@ -323,9 +325,8 @@ impl App {
     }
 }
 
-pub fn raw_to_list(mut list: Vec<String>) -> List<'static> {
-    list.sort();
-    list.reverse();
+pub fn raw_to_list(list: Vec<String>) -> List<'static> {
+
     List::new(list)
         .block(Block::bordered().title("Logs").padding(Padding::left(2)))
         .style(Style::new().white())
